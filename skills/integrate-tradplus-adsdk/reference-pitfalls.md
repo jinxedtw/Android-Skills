@@ -84,28 +84,3 @@ package_name = com.test.app,{正式applicationId}
 白名单不含正式包名 → 校验失败。改白名单后需 **重打 AAR**。
 
 ---
-
-## 5. 公开 API 对不上
-
-打包 `namespace = com.ai.smart` → 宿主 import `com.ai.smartopen.*`。  
-换 namespace 重打后必须同步改宿主 import 与 Manifest `meta-data android:value`。
-
-换 AAR 后确认包内仍有：
-
-```
-com/{namespace路径}/open/AbeoAdCallback.class
-```
-
-若只有混淆后的内部包、没有 `*open`，说明打包配置/混淆异常，勿接入宿主。
-
----
-
-## 6. getMaxID() 留 TODO
-
-不接 Max 时返回 `""`，不要：
-
-```kotlin
-TODO("Not yet implemented")
-```
-
-否则触达 Max 路径会直接崩。

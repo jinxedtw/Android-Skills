@@ -1,6 +1,6 @@
 # TradPlus 宿主依赖参考
 
-版本号会变。**优先使用 adsdk 打包结束时脚本打印的 dependencies / repositories。** 下文为形态参考（源自 M363 接入）。
+版本号会变。**优先使用 adsdk 打包结束时脚本打印的 dependencies / repositories。** 下文为形态参考
 
 ## dependencies 形态
 

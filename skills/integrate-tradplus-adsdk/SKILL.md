@@ -12,7 +12,7 @@ disable-model-invocation: false
 
 # 宿主接入 TradPlus（adSdk）
 
-把已用 **adSdk** 的 Android 宿主切到 **TradPlus**。广告能力走 `AbeoAdCallback` / `AdCallbackImp`，不直接调各网络 SDK。
+把已用 **adSdk** 的 Android 宿主切到 **TradPlus**。广告能力走 `AdCallbackImp`，不直接调各网络 SDK。
 
 详细依赖坐标、仓库、ProGuard 全文见 [reference-deps.md](reference-deps.md)。  
 已知崩溃与原生单例见 [reference-pitfalls.md](reference-pitfalls.md)。
@@ -35,14 +35,14 @@ disable-model-invocation: false
 
 **信息不齐时不要改依赖、不要换 AAR。**
 
-| 收集项 | 用途 | 校验 |
-|--------|------|------|
-| **TradPlus App ID** | `getTradplusAppId()` / `BuildConfig.TRAD_PLUS_ID` | 非空 |
-| **广告位 ID 列表** | `adConfig.json` 的 `adInfos[].id` | 覆盖开屏/插页/原生等 |
-| **中介清单** | 宿主 Adapter | 与运营后台一致 |
-| **Remote Config Key** | `getRemoteAdConfigKey()` | 与线上一致 |
-| **宿主包名** | adsdk `project.config` → `package_name` | 必须含正式 `applicationId` |
-| **adsdk namespace** | 公开 API = `{namespace}open` | 与 Manifest `android:value` 一致 |
+| 收集项 | 用途 | 校验                                      |
+|--------|------|-----------------------------------------|
+| **TradPlus App ID** | `getTradplusAppId()` / `BuildConfig.TRAD_PLUS_ID` | 非空                                      |
+| **广告位 ID 列表** | `adConfig.json` 的 `adInfos[].id` | 覆盖开屏/插页/原生等                             |
+| **中介清单** | 宿主 Adapter | 与运营后台一致                                 |
+| **Remote Config Key** | `getRemoteAdConfigKey()` | 与线上一致                                   |
+| **宿主包名** | adsdk `project.config` → `package_name` | 必须含正式 `applicationId`和测试的`applicationId` |
+| **adsdk namespace** | 公开 API = `{namespace}open` | 与 Manifest `android:value` 一致           |
 
 向运营确认：是否 **只接 TradPlus**（可删 Max/TopOn）。
 
@@ -52,21 +52,20 @@ disable-model-invocation: false
 
 ```properties
 project_code = {代号}
-package_name = com.test.app,{正式包名}
+package_name = {测试包名},{正式包名}
 namespace = {宿主包名前缀}     # 例 com.ai.smart → API 包 com.ai.smartopen
 enable_platform = tradplus     # 仅 TP 时不要带 max/topon
 ```
+用这个配置替换**adsdk**工程里面的[project.config](../../../adsdk/project.config)，然后执行命令
 
 ```bash
-cd /path/to/adsdk
-./gradlew clean :ad:assembleRelease
+sh configure_project.sh
 ```
+输入0后开始打包
 
-| 产物 | 说明 |
-|------|------|
-| `ad/build/outputs/aar/adSdk-{代号}-*-release.aar` | 宿主主 SDK |
-| `ad/libs/compare_price-release.aar` | **不**打进 adSdk，必须单独拷到宿主 |
-| `aar-records/{代号}/` | 归档 AAR + mapping + config |
+| 产物                                                                                                                                                     | 说明 |
+|--------------------------------------------------------------------------------------------------------------------------------------------------------|------|
+| `aar-records/{代号}/`                                                                                                                                    | 归档 AAR + mapping + config |
 
 **硬规则：** TradPlus 在 AAR 内为 `compileOnly`；运行时依赖由宿主提供。漏接 `compare_price` → 初始化即崩。
 
@@ -93,19 +92,18 @@ implementation(files("libs/compare_price-release.aar"))
 
 ```kotlin
 defaultConfig {
-    buildConfigField("String", "TRAD_PLUS_ID", "\"${aa.getProperty("tradPlusId")}\"")
+    buildConfigField("String", "TRAD_PLUS_ID",  "\"${AppConfig.Key.TRAD_PLUS_ID}\"")
 }
 ```
 
-env / packaging 增加 `tradPlusId=`。
+宿主的[AppConfig.kt](../../../pdf06/buildSrc/src/main/kotlin/com/assemble/config/AppConfig.kt) 增加 `tradPlusId=`。
 
 ## 4. AdCallbackImp
 
+打出来的aar会根据项目不同加不同的前缀进行混淆
+
 ```kotlin
 override fun getTradplusAppId(): String = BuildConfig.TRAD_PLUS_ID
-override fun getMaxID(): String = ""       // 不接 Max：空串，勿留会崩的 TODO
-override fun getToponAppId(): String = ""
-override fun getToponAppKey(): String = ""
 ```
 
 - 删除对旧 Max/AdMob 比价 jar 的 `askAdmobEcpm`；TradPlus 走 `compare_price`。
@@ -123,6 +121,7 @@ Manifest：
 `android:value` = 打包时 `project.config` 的 `namespace`。若与 AdMob/TP 合并冲突，可加 `tools:replace="android:networkSecurityConfig"`。
 
 ## 5. 广告配置 JSON
+需要包含测试的广告配置和正式的广告配置
 
 每个 TradPlus unit **必须**写 platform：
 
