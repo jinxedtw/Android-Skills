@@ -15,7 +15,7 @@ Android-Skills/
 
 | 目录 | 用途 |
 |------|------|
-| [skills/integrate-tradplus-adsdk](skills/integrate-adsdk/SKILL.md) | 宿主 Android 工程接入 / 切换 TradPlus（adSdk + compare_price） |
+| [skills/integrate-adsdk](skills/integrate-adsdk/SKILL.md) | 宿主 Android 工程接入 / 切换广告聚合（AdMob / MAX / TopOn / TradPlus，adSdk AAR） |
 
 ## 新增 Skill
 
