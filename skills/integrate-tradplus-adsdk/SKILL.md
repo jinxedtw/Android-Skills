@@ -96,7 +96,7 @@ defaultConfig {
 }
 ```
 
-宿主的[AppConfig.kt](../../../pdf06/buildSrc/src/main/kotlin/com/assemble/config/AppConfig.kt) 增加 `tradPlusId=`。
+宿主的[AppConfig.kt](../../../pdf06/buildSrc/src/main/kotlin/com/assemble/config/AppConfig.kt) 增加 `TRAD_PLUS_ID`。
 
 ## 4. AdCallbackImp
 
@@ -135,13 +135,16 @@ Manifest：
 
 SDK **不会**按 unitId 推断 TradPlus；漏写 platform → 无填充。
 
-## 6. ProGuard + 坑
+## 6. 埋点
+必须保证原来项目的埋点上报不变，完好的迁徙到AdCallback的实现类中，埋点说明见[README.markdown](../../../adsdk/README.markdown)
+
+## 7. ProGuard + 坑
 
 正式包必须 keep `com.tradplus.**` 与 `com.tp.compareprice.**`。规则与崩溃说明见 [reference-pitfalls.md](reference-pitfalls.md)。
 
 原生：TradPlus 同广告位全局单例；adsdk 须复用 `TPNative`；宿主轮播建议 **选中页再 show**。
 
-## 7. 验收
+## 8. 验收
 
 | 场景 | 期望 |
 |------|------|
@@ -150,7 +153,7 @@ SDK **不会**按 unitId 推断 TradPlus；漏写 platform → 无填充。
 | 首页原生轮播 | 连续可展示，无隔次空壳 |
 | 换包名 | `package_name` 白名单已含并重打 AAR |
 
-## 8. Agent 约束
+## 9. Agent 约束
 
 1. 不要只换 AAR 不改依赖。  
 2. 不要漏拷 `compare_price-release.aar`。  
@@ -159,3 +162,4 @@ SDK **不会**按 unitId 推断 TradPlus；漏写 platform → 无填充。
 5. 不要漏把正式包名写入 `package_name` 白名单。  
 6. 中介版本以运营与 **打包脚本打印**为准。  
 7. 改 adsdk 后必须 clean 重打 AAR，确认仍有 `{namespace}open` 公开 API。
+8. 并且确定好所需要的信息再进行修改，不确定时需要询问。
