@@ -16,6 +16,7 @@ Android-Skills/
 | 目录 | 用途 |
 |------|------|
 | [skills/integrate-adsdk](skills/integrate-adsdk/SKILL.md) | 宿主 Android 工程接入 / 切换广告聚合（AdMob / MAX / TopOn / TradPlus，adSdk AAR） |
+| [skills/complete-pdf-project](skills/complete-pdf-project/SKILL.md) | 以现有 PDF 工程为底板复制新项目：业务照搬、差异化打散、Figma 换 UI、广告走 adSdk |
 
 ## 新增 Skill
 
