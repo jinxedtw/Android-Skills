@@ -1,5 +1,5 @@
 ---
-name: integrate-tradplus-adsdk
+name: integrate-adsdk
 description: >-
   将宿主 Android 工程从 Max/TopOn（或其它聚合）切换/接入 TradPlus，并正确接入
   adSdk-release.aar + compare_price-release.aar。覆盖打包 SDK、替换 AAR、
@@ -135,8 +135,9 @@ Manifest：
 
 SDK **不会**按 unitId 推断 TradPlus；漏写 platform → 无填充。
 
-## 6. 埋点
+## 6. 埋点和广告逻辑
 必须保证原来项目的埋点上报不变，完好的迁徙到AdCallback的实现类中，埋点说明见[README.markdown](../../../adsdk/README.markdown)
+保留原来的启动页和冷热启动的广告关闭和展示逻辑，如果有max或者bingo中介，保留特殊的处理逻辑
 
 ## 7. ProGuard + 坑
 

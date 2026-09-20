@@ -15,7 +15,7 @@ Android-Skills/
 
 | 目录 | 用途 |
 |------|------|
-| [skills/integrate-tradplus-adsdk](skills/integrate-tradplus-adsdk/SKILL.md) | 宿主 Android 工程接入 / 切换 TradPlus（adSdk + compare_price） |
+| [skills/integrate-tradplus-adsdk](skills/integrate-adsdk/SKILL.md) | 宿主 Android 工程接入 / 切换 TradPlus（adSdk + compare_price） |
 
 ## 新增 Skill
 
