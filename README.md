@@ -1,11 +1,11 @@
-# android-ad-skills
+# Android-Skills
 
 **只存放 Cursor / AI Agent 用的 Skill 文档**，不放工程源码、AAR、密钥或业务项目。
 
 目录约定对齐 [flutter-skills](https://github.com/hzl000/flutter-skills)：
 
 ```
-android-ad-skills/
+Android-Skills/
 ├── README.md
 └── skills/
     └── <skill-name>/
@@ -32,17 +32,17 @@ git push
 
 规则：
 
-- `name`：小写 + 连字符，与文件夹名一致  
-- `description`：写清 WHAT + WHEN（触发词），便于 Agent 发现  
-- 主文件尽量精炼；版本号、长依赖列表放 `reference-*.md`  
-- **禁止**提交：工程代码、`*.aar` / `*.jks` / 密钥、`.env`、构建产物  
+- 文件夹名 = skill `name`（小写 + 连字符）
+- `description` 写清 WHAT + WHEN（触发词）
+- 主文件精炼；长依赖 / 版本号放 `reference-*.md`
+- **禁止**提交：工程代码、`*.aar` / `*.jks` / 密钥、`.env`、构建产物
 
 ## 在工程里使用
 
 ```bash
 # 软链到具体项目（推荐，方便随本仓库更新）
-ln -sfn /path/to/android-ad-skills/skills/integrate-tradplus-adsdk \
+ln -sfn /path/to/Android-Skills/skills/integrate-tradplus-adsdk \
         /path/to/your-app/.cursor/skills/integrate-tradplus-adsdk
 ```
 
-或对话里直接 `@skills/integrate-tradplus-adsdk/SKILL.md`。
+或对话里 `@skills/integrate-tradplus-adsdk/SKILL.md`。
