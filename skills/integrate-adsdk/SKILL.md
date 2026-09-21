@@ -193,7 +193,7 @@ object AdCallbackImp : /* 当前 AAR 的 AdCallback */() {
 ```
 
 - `askAdmobEcpm`：仅 **AdMob + Multi**；切走 AdMob 可删旧比价 jar。TradPlus 比价走 `compare_price`。
-- `canForceCloseApplovinAd`：仅仍含 MAX 时按标志位返回；切走 MAX 可保持默认 `true`。
+- `canForceCloseApplovinAd` / `onAdActivityForceClose`：必须按 M366 写，见 [reference-host-logic.md](reference-host-logic.md)。切走 MAX 后可简化。
 - `canReportAdmobImpression`：仅 AdMob；问运营是否已开自动收集。
 - `getNativeAdStyle`：见 §5。
 - `canLoadAd`：VPN / 白名单 / IP 拦截等宿主规则放这里。
@@ -208,9 +208,17 @@ Manifest：
 
 `android:value` = 打包时 `namespace`。AdMob 另加 `com.google.android.gms.ads.APPLICATION_ID`。合并冲突见 [reference-pitfalls.md](reference-pitfalls.md)。
 
-### 4.2 AdManager 门面
+### 4.2 AdState / 门面
 
-只转发 `AdCallbackImp`，并持有宿主 UI 标志位。**禁止**再定义 `enum class AdPlace`、`@IntDef NativeType`。
+标志位放 `AdState`（与 M366 一致），展示方法只转发 `AdCallbackImp`。**禁止**再定义 `enum class AdPlace`、`@IntDef NativeType`。
+
+```kotlin
+var clickFullScreenAd = false
+/** 全屏广告点击后是否已离开应用（用于区分「点击但未外跳」与「点击并跳转外部」） */
+var fullScreenAdClickLeftApp = false
+var fullAdInShowing = false
+var clickOpenMaxAd = false
+```
 
 ```kotlin
 fun checkAndLoadAd(vararg adPlaces: AdPlace) {
@@ -320,4 +328,4 @@ NativeAdStyle(
 7. 不要漏把正式包名写入 `package_name`。  
 8. 中介版本以运营与 **打包脚本打印**为准；不要抄 `*.66.4.42.1.1.100` 空壳坐标。  
 9. 信息不全先问；不要改无关宿主路径。  
-10. 不要把 `clickFullScreenAd` / `fullAdInShowing` / 启动页热启动随旧 `AdManager` 删掉。
+10. 不要把 `clickFullScreenAd` / `fullScreenAdClickLeftApp` / `fullAdInShowing` / `clickOpenMaxAd` 随旧 `AdManager` 删掉；`onAdActivityForceClose` / `canForceCloseApplovinAd` 必须按 M366 实现。

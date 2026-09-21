@@ -4,7 +4,7 @@
 
 adsdk 内部 `AppObserver` 只做：前后台切换时允许/禁止原生刷新，以及退后台强制关掉第三方广告 Activity。它 **不会** 帮宿主开 Splash、发召回通知、防开屏连跳。
 
-写法以 pdf06 为准：标志位放宿主 `AdManager` 门面，广告位放 `AdCallbackImp`，页面只调门面。
+写法以 **M366** 为准：标志位放宿主 `AdState`（或同等门面），广告位放 `AdCallbackImp`，页面只调门面。
 
 ## 改之前先搜
 
@@ -20,64 +20,95 @@ adsdk 内部 `AppObserver` 只做：前后台切换时允许/禁止原生刷新�
 - `haveOpenAd` / `goWithAd`
 - `AppLovinFullscreenActivity` / `AdSplashActivity` / `tpnClose`
 
-## 标志位含义
+## 标志位（必须按此写）
+
+宿主单独放一个 object（M366 是 `AdState`），不要散落在各 `*AdImp` 里：
+
+```kotlin
+object AdState {
+    var clickFullScreenAd = false
+
+    /** 全屏广告点击后是否已离开应用（用于区分「点击但未外跳」与「点击并跳转外部」） */
+    var fullScreenAdClickLeftApp = false
+    var fullAdInShowing = false
+    var clickOpenMaxAd = false
+}
+```
 
 | 标志 | 谁置 true | 谁置 false | 用途 |
 |------|-----------|------------|------|
-| `clickFullScreenAd` | 全屏 `onAdClick` | 启动页 `onResume`；关闭流程里复位 | 区分「点了广告」 |
-| `fullAdInShowing` | `onAdClick` 或开屏/插页 `onAdShow` | `onAdClose` | `ON_STOP` 发广告召回通知 |
-| `fullScreenAdClickLeftApp` | `ON_STOP` 时 `fullAdInShowing && clickFullScreenAd` | 启动页 `onCreate` / 关闭后 `go()` 前 | 点广告并外跳时，回来不要立刻 `go()` 套娃 |
-| `clickOpenMaxAd` | MAX 开屏/插页点击，且栈里同时有 AppLovin 全屏 + Splash | 下次 show MAX 全屏前 | `ON_STOP` **不要** dismiss AppLovin |
+| `clickFullScreenAd` | 开屏/插页 `onAdClick` | 启动页 `onResume`；`onAdClose`；`goWithAd` 回调里 | 点了全屏广告 |
+| `fullAdInShowing` | `onAdClick` | `onAdClose` | `ON_STOP` 发广告召回通知 |
+| `fullScreenAdClickLeftApp` | `ON_STOP` 且 `fullAdInShowing && clickFullScreenAd` | 启动页 `onCreate`；`goWithAd` 里 `go()` 前后；**MAX 点击时在 `canForceCloseApplovinAd` 里清掉** | 点了且外跳：回来不要立刻 `go()`。点了但还在 AppLovin 页：必须是 false，关闭后仍 `go()` |
+| `clickOpenMaxAd` | 开屏/插页 `onAdClick`，且栈里同时有 `AppLovinFullscreenActivity` + Splash | `onAdShow` | 点了 MAX 全屏：**不要** force dismiss，否则热启动套娃 |
 
-`clickOpenMaxAd` 只属于 MAX。目标不含 MAX 时删除它。前三个 **所有平台都要留**。
+`clickOpenMaxAd` 只属于 MAX中介。目标不含 MAX中介 时删除它和对 `AppLovinFullscreenActivity` 的引用。前三个 **所有平台都要留**。
 
 ## 接到 AdCallbackImp
 
 ```kotlin
 override fun onAdClick(..., type: AdFormat, platform: AdPlatform) {
-    AdManager.fullAdInShowing = true
-    if (type == AdFormat.OPEN || type == AdFormat.INTERSTITIAL || type == AdFormat.REWARDED) {
-        AdManager.clickFullScreenAd = true
-        // 仍含 MAX 且栈里同时有 AppLovinFullscreenActivity + Splash → clickOpenMaxAd = true
+    AdState.fullAdInShowing = true
+    if (type == AdFormat.INTERSTITIAL || type == AdFormat.OPEN) {
+        AdState.clickFullScreenAd = true
+        AdState.clickOpenMaxAd =
+            ActivityUtils.isActivityExistsInStack(AppLovinFullscreenActivity::class.java) &&
+                ActivityUtils.isActivityExistsInStack(SplashActivity::class.java)
     }
 }
 
 override fun onAdClose(adType: AdFormat) {
     super.onAdClose(adType)
-    AdManager.fullAdInShowing = false
-    AdManager.clickFullScreenAd = false
+    AdState.fullAdInShowing = false
+    AdState.clickFullScreenAd = false
 }
 
 override fun onAdShow(adPlace: AdPlace, adType: AdFormat) {
-    if (adType == AdFormat.OPEN || adType == AdFormat.INTERSTITIAL) {
-        AdManager.fullAdInShowing = true
-    }
+    AdState.clickOpenMaxAd = false
+    // 开屏/插页/原生/Banner 展示成功埋点按原项目放这里
 }
 
 override fun onAdActivityForceClose(activity: Activity) {
-    SplashActivity.adIsInShow = false
+    if (activity is AppLovinFullscreenActivity) {
+        if (!AdState.clickOpenMaxAd) {
+            // 点击MAX开屏广告不自动关闭,避免无限热启动
+            SplashActivity.adIsInShow = false
+        }
+    } else {
+        SplashActivity.adIsInShow = false
+    }
 }
 
-override fun canForceCloseApplovinAd(): Boolean = !clickOpenMaxAd  // 无 MAX 时保持 true
+override fun canForceCloseApplovinAd(): Boolean {
+    if (AdState.clickOpenMaxAd) {
+        AdState.fullScreenAdClickLeftApp = false
+    }
+    return !AdState.clickOpenMaxAd
+}
 ```
+
+切走 MAX 后：`onAdActivityForceClose` 只留 `adIsInShow = false`；`canForceCloseApplovinAd` 保持默认 `true`，不要再引用 `AppLovinFullscreenActivity`。
 
 ## 启动页（冷启动）
 
 ```
 onCreate / initPage
   → AdCallbackImp.onHotStart()
-  → 复位 fullScreenAdClickLeftApp
-  → 进度动画 + AdManager.checkAndLoadAd(Start, Connect, Home, ...)
+  → AdState.fullScreenAdClickLeftApp = false
+  → 进度动画 + loadAd(Start, ...)
   → 有开屏缓存 ? goWithAd() : go()
 
 goWithAd
   → adIsInShow 防重入
-  → AdManager.showAd(this, AdCallbackImp.Start, onFullAdCallBack)
-  → onAdClose / onAdShowFail：!fullScreenAdClickLeftApp 才 go()
+  → showOpenOrInt(Start)
+  → onAdClosed / onAdShowFail：
+        if (!AdState.fullScreenAdClickLeftApp) go()
+        AdState.fullScreenAdClickLeftApp = false
+        AdState.clickFullScreenAd = false
   → show 返回 false：直接 go()
 
 onResume
-  → clickFullScreenAd = false
+  → AdState.clickFullScreenAd = false
   → canAnimResume 则重跑动画
 ```
 
@@ -98,10 +129,17 @@ onResume
 
 `ON_STOP`：
 
-1. `Splash.canAnimResume = true`
-2. `fullAdInShowing && clickFullScreenAd` → `fullScreenAdClickLeftApp = true`
-3. `fullAdInShowing` → 广告召回通知
-4. 非宿主广告 Activity：MAX 交给 adsdk + `canForceCloseApplovinAd`；宿主在 `onAdActivityForceClose` 复位 `adIsInShow`
+```kotlin
+SplashActivity.canAnimResume = true
+if (AdState.fullAdInShowing && AdState.clickFullScreenAd) {
+    AdState.fullScreenAdClickLeftApp = true
+}
+if (canShowHot && AdState.fullAdInShowing) {
+    // 广告召回通知
+}
+```
+
+第三方广告 Activity 的 finish / AppLovin `dismiss` 交给 **adsdk 自己的 AppObserver**，宿主不要再扫一遍。MAX 是否 dismiss 由 `canForceCloseApplovinAd()` 决定；复位 `adIsInShow` 只在 `onAdActivityForceClose` 里做。
 
 ## 通知拉起
 
