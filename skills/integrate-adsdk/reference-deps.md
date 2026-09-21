@@ -114,7 +114,7 @@ TradPlus 常见仓库：`google()`、`mavenCentral()`、`https://jitpack.io`、M
 |------|------|
 | MAX | `com.applovin:applovin-sdk`、所有 `com.applovin.mediation:*` |
 | TopOn | `com.thinkup.sdk:*`、宿主源码 `**/topon/custom/**` |
-| AdMob | `play-services-ads` 及 `com.google.ads.mediation:*`（UMP 若仍要同意弹窗，评估是否保留 ads） |
+| AdMob | `play-services-ads` 及 `com.google.ads.mediation:*`。未接 AdMob 不要加 ads，并删除宿主 `UMPManager` |
 | TradPlus | `com.tradplusad:*`、`tp_exchange`、`adapter-util`、`compare_price-release.aar`、各广告源 SDK（若无其它平台再用） |
 
 多平台并存时不要误删仍被另一平台使用的广告源 SDK。
@@ -149,6 +149,8 @@ TradPlus 常见仓库：`google()`、`mavenCentral()`、`https://jitpack.io`、M
 ```
 
 广告源（Meta / Pangle / Mintegral / GMS ads）keep 以各网络文档 + 打包脚本为准。
+
+MAX 测试 SDK Key 与测试广告位见 [reference-defaults.md](reference-defaults.md)，不要从旧工程抄正式 Key。
 
 ## adsdk 侧相关路径
 

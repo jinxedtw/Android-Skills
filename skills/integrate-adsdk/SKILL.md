@@ -35,7 +35,7 @@ disable-model-invocation: false
 - [ ] AdCallbackImp：凭证已填；广告位 val 定义在实现类上；未启用平台返回空串
 - [ ] 宿主 AdManager 只做门面+标志位，没有重复的 AdPlace enum / NativeType IntDef
 - [ ] adConfig.json（测试+正式）广告位 platform 规则正确
-- [ ] 原生布局：AdMob 根 NativeAdView；其它平台 otherLayout；控件 ID 一致
+- [ ] 原生布局：仅 AdMob 才写 NativeAdView / adMobLayoutResId；其它平台 otherLayout，未接 AdMob 传 0
 - [ ] Manifest meta-data 与 namespace 一致；合并冲突已处理
 - [ ] ProGuard 已 keep 仍在使用的平台 + AdCallbackImp + {namespace}open
 - [ ] 埋点与启动页/冷热启动逻辑已迁徙，未误删仍在用的平台专用逻辑
@@ -51,20 +51,24 @@ disable-model-invocation: false
 1. **目标平台集合**（`enable_platform`）
 2. **旧平台是删还是留**（只接新平台才能删旧依赖 / 旧广告位 / 旧专用逻辑）
 
+MAX 测试 Key / 测试广告位 / 本地 `adConfig.json` 模板见 [reference-defaults.md](reference-defaults.md)。**不要再问 MAX SDK Key 和 MAX 广告位 ID。**
+
 | 收集项 | 何时必填 | 用途 |
 |--------|----------|------|
 | **当前平台** | 始终 | 决定删哪些依赖、哪些专用逻辑 |
 | **目标平台** | 始终 | `enable_platform` |
-| **测试 + 正式 `applicationId`** | 始终 | `package_name` 白名单 |
+| **测试 + 正式 `applicationId`** | 始终 | 只写入 adsdk `package_name` 白名单。**不要改宿主 `AppConfig.APP_ID` / `google-services.json`**；宿主继续用测试包名，上线打包时再切正式包 |
 | **adsdk namespace** | 始终 | 公开 API = `{namespace}open`；Manifest `android:value` |
-| **广告位 ID 列表** | 始终 | `adConfig.json` 的 `adInfos[].id`，覆盖开屏/插页/原生等 |
+| **广告位 label 列表** | 始终 | 沿用宿主原 `AdPlace.label`（如 `pdfCMngStart`），不要新起名字 |
 | **中介清单** | 目标含 max/admob/tradplus | 与运营后台一致 |
-| **Remote Config Key** | 始终 | `getRemoteAdConfigKey()` |
-| **MAX SDK Key** | 目标含 `max` | `getMaxID()` |
+| **Remote Config Key** | 始终 | **广告配置只问这个**；本地文件名固定 `adConfig.json` |
+| **MAX SDK Key** | 目标含 `max` | **不要问**，用 [reference-defaults.md](reference-defaults.md) 测试 Key |
+| **MAX 广告位 ID** | 目标含 `max` | **不要问**，用文档里的测试 unit id 写入 `adConfig.json` |
 | **TopOn App ID + App Key** | 目标含 `topon` | `getToponAppId()` / `getToponAppKey()` |
 | **TradPlus App ID** | 目标含 `tradplus` | `getTradplusAppId()` |
 
-凭证非空才算齐。未启用的平台不要向运营要 ID，AdCallback 留空串。
+凭证非空才算齐。未启用的平台不要向运营要 ID，AdCallback 留空串。  
+目标含 MAX：用固定测试 Key + 测试 ID 先把宿主接上；Remote Config 只问 key，本地按原广告位生成 `adConfig.json`。
 
 ## 1. 按目标平台打包 adSdk AAR
 
@@ -74,7 +78,7 @@ disable-model-invocation: false
 
 ```properties
 project_code = {代号}
-package_name = {测试包名},{正式包名}
+package_name = {测试包名},{正式包名}   # 白名单；正式包只写这里，不要写进宿主 AppConfig
 namespace = {宿主包名前缀}     # 例 com.cell.document → API 包 com.cell.documentopen
 enable_platform = {目标平台}   # admob / max / topon / tradplus，逗号分隔
 max_mediation = {MAX中介}      # 仅 enable 含 max 时有效
@@ -146,7 +150,7 @@ implementation(files("libs/compare_price-release.aar"))
 |------------|----------|
 | MAX | `com.applovin:applovin-sdk`、`com.applovin.mediation:*` |
 | TopOn | `com.thinkup.sdk:*`、宿主 `**/topon/custom/**` |
-| AdMob | `play-services-ads` 及 AdMob 中介 Adapter（UMP 仍可能需要 ads） |
+| AdMob | `play-services-ads` 及 AdMob 中介 Adapter |
 | TradPlus | `com.tradplusad:*`、`compare_price-release.aar` |
 
 只加运营后台 **已开启** 的广告源。TradPlus adapter **禁止**用 `2.66.4.42.1.1.100` 这类空壳版本，详见 [reference-deps.md](reference-deps.md)。
@@ -154,7 +158,7 @@ implementation(files("libs/compare_price-release.aar"))
 目标平台的 App ID / SDK Key 写入宿主 `BuildConfig`（或现有配置类）：
 
 ```kotlin
-buildConfigField("String", "MAX_SDK_KEY", "\"${...}\"")
+buildConfigField("String", "MAX_ID", "\"${...}\"")  // MAX：用 reference-defaults.md 测试 Key
 buildConfigField("String", "TOPON_APP_ID", "\"${...}\"")
 buildConfigField("String", "TOPON_APP_KEY", "\"${...}\"")
 buildConfigField("String", "TRAD_PLUS_ID", "\"${...}\"")
@@ -185,7 +189,7 @@ object AdCallbackImp : /* 当前 AAR 的 AdCallback */() {
 
     override fun adPlaces() = listOf(Start, Connect, Extra, Home, HomeBan, Reward)
     override fun getTradplusAppId() = BuildConfig.TRAD_PLUS_ID   // 不接 TP → ""
-    override fun getMaxID() = ""                                  // 不接 MAX → ""
+    override fun getMaxID() = BuildConfig.MAX_ID                 // 不接 MAX → ""
     override fun getLocalAdConfigFileName() = "adConfig.json"
     override fun getRemoteAdConfigKey() = "full_ad_list"         // 以宿主 Remote Config 为准
     override fun getAdLoadMode() = AdLoadMode.Multi
@@ -206,7 +210,7 @@ Manifest：
     android:value="{namespace}" />
 ```
 
-`android:value` = 打包时 `namespace`。AdMob 另加 `com.google.android.gms.ads.APPLICATION_ID`。合并冲突见 [reference-pitfalls.md](reference-pitfalls.md)。
+`android:value` = 打包时 `namespace`。**仅启用 AdMob 时**才加 `com.google.android.gms.ads.APPLICATION_ID`。合并冲突见 [reference-pitfalls.md](reference-pitfalls.md)。不要预加 Vungle 6.x `tools:node="remove"`。
 
 ### 4.2 AdState / 门面
 
@@ -247,18 +251,30 @@ fun showAd(..., adPlace: AdPlace, navType: NativeType = NativeType.BIG, ...): Bo
 
 ## 5. 原生布局
 
-每种 `NativeType` 两套 layout，**控件 ID 必须相同**：
+每种 `NativeType` 两套 layout 参数，**控件 ID 必须相同**：
 
-| 参数 | AdMob | MAX / TopOn / TradPlus |
+| 参数 | AdMob（仅 `enable_platform` 含 `admob`） | MAX / TopOn / TradPlus |
 |------|--------|-------------------------|
 | layout | `adMobLayoutResId` | `otherLayoutResId` |
 | 根节点 | `com.google.android.gms.ads.nativead.NativeAdView` | 普通 ViewGroup |
 | 媒体 | `com.google.android.gms.ads.nativead.MediaView` | `FrameLayout`（id 仍是 media_view） |
 
+**未接入 AdMob：** `adMobLayoutResId` 直接传 `0`，不要为 NativeAdView 去加 `play-services-ads`，也不要去改原布局根节点。同时删掉宿主 `UMPManager` 及其调用。布局 XML 里也不要留 `NativeAdView` / `MediaView`，否则 dataBinding 仍会依赖 ads。
+
 ```kotlin
 NativeAdStyle(
-    R.layout.layout_nav_admob_big,  // AdMob
-    R.layout.layout_nav_tp_big,     // 其它
+    0,                              // 未接 AdMob
+    R.layout.layout_nav_max_big,    // 其它平台
+    R.id.tv_top, R.id.tv_bottom, R.id.iv_icon, R.id.tv_button, R.id.media_view,
+)
+```
+
+接了 AdMob 才写 AdMob 布局：
+
+```kotlin
+NativeAdStyle(
+    R.layout.layout_nav_admob_big,
+    R.layout.layout_nav_tp_big,
     R.id.tv_top, R.id.tv_bottom, R.id.iv_icon, R.id.tv_button, R.id.media_view,
 )
 ```
@@ -268,6 +284,10 @@ NativeAdStyle(
 ## 6. 广告配置 JSON
 
 必须同时有 **测试** 与 **正式** 配置（本地 assets + Remote Config 同结构）。`adPlace` 字符串 = `AdCallbackImp` 里 `AdPlace.label`。
+
+**MAX：** 本地 `assets/adConfig.json` 按 [reference-defaults.md](reference-defaults.md) 生成——广告位用宿主原 label，id 用固定测试 unit。Remote Config 只问 key，线上 JSON 与本地同结构。不要再沿用 `d0_config.json` / `adDay0` 多文件。
+
+把 `app/src/main/assets/adConfig.json` 写入宿主 `app/.gitignore`（与旧 `d0_config.json` 同级），本地保留、不要提交。
 
 ```json
 { "id": "{unit-id}", "value": 50, "format": "nav", "platform": "{admob|max|topon|tradplus}" }
@@ -321,11 +341,14 @@ NativeAdStyle(
 
 1. 先确认目标平台，不要默认 TradPlus。  
 2. 不要只换 AAR 不改依赖。换 AAR 后必须先识别 `{namespace}open` 类名。  
+2b. 目标含 MAX：不要问 SDK Key / 广告位 ID；用 [reference-defaults.md](reference-defaults.md)。广告配置只问 Remote Config Key。  
 3. 不要再造 `AdPlace` enum 或 `NativeType` IntDef；广告位挂 `AdCallbackImp`，样式用 AAR 的 NativeType。  
 4. 目标含 TradPlus 时不要漏 `compare_price` / `adapter-util`；adapter 版本必须与主包对齐。  
 5. 不要省略仍启用平台的正式包 keep。  
 6. TopOn / TradPlus 的 `adConfig` 不要省略对应 `"platform"`。  
-7. 不要漏把正式包名写入 `package_name`。  
+7. 不要漏把正式包名写入 adsdk `package_name`；**不要把正式包名写进宿主 `AppConfig` / `google-services.json`**，上线时由动态配置切换。  
 8. 中介版本以运营与 **打包脚本打印**为准；不要抄 `*.66.4.42.1.1.100` 空壳坐标。  
 9. 信息不全先问；不要改无关宿主路径。  
-10. 不要把 `clickFullScreenAd` / `fullScreenAdClickLeftApp` / `fullAdInShowing` / `clickOpenMaxAd` 随旧 `AdManager` 删掉；`onAdActivityForceClose` / `canForceCloseApplovinAd` 必须按 M366 实现。
+10. 不要把 `clickFullScreenAd` / `fullScreenAdClickLeftApp` / `fullAdInShowing` / `clickOpenMaxAd` 随旧 `AdManager` 删掉；`onAdActivityForceClose` / `canForceCloseApplovinAd` 必须按 M366 实现。  
+11. 未启用 AdMob：不要加 `play-services-ads`，不要留 `UMPManager`，`adMobLayoutResId` 传 `0`。  
+12. 不要预加 Vungle warren `tools:node="remove"`；热启动判断保持宿主原样，不要自行扫各广告 SDK 包名前缀。

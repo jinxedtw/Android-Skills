@@ -72,17 +72,12 @@ from audience-network-sdk 与 tradplus-facebook 冲突
 
 ## 6. Manifest merger：Vungle warren receiver
 
-旧 `tradplus-vunglex` 仍声明 Vungle 6.x：
+**不要预加。** 只有 Manifest merger 真的报旧 `tradplus-vunglex` 的 Vungle 6.x 类时才 `tools:node="remove"`：
 
 - `com.vungle.warren.NetworkProviderReceiver`（有 intent-filter、无 `exported` → target 31 合并不过）
 - `com.vungle.warren.ui.VungleActivity`
 
-Vungle 7 包名是 `com.vungle.ads`，这些类不存在。宿主：
-
-```xml
-<activity android:name="com.vungle.warren.ui.VungleActivity" tools:node="remove" />
-<receiver android:name="com.vungle.warren.NetworkProviderReceiver" tools:node="remove" />
-```
+MAX + Vungle 7（`com.vungle.ads`）不需要这两行。Vungle 7 包名已经不是 `com.vungle.warren`。
 
 ---
 
@@ -134,7 +129,7 @@ AAR 里有该平台代码，但 AdCallback 对应字段为空：MAX / TopOn / Tr
 
 ## 12. AdMob 原生布局
 
-AdMob 布局根节点必须是 `NativeAdView`，媒体必须是 `MediaView`。其它平台走 `otherLayoutResId`，媒体用 `FrameLayout`。同一 `NativeType` 下控件 ID 保持一致。
+**仅启用 AdMob 时**根节点才必须是 `NativeAdView`、媒体 `MediaView`。未接 AdMob：`adMobLayoutResId = 0`，不要为了 NativeAdView 去加 `play-services-ads`。其它平台走 `otherLayoutResId`，媒体用 `FrameLayout`。同一 `NativeType` 下控件 ID 保持一致。
 
 ---
 

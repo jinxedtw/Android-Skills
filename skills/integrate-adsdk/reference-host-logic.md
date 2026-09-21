@@ -121,11 +121,15 @@ onResume
 
 ## 热启动
 
-宿主 `AppObserver.ON_START`（`canShowHot == true`）：
+宿主 `AppObserver.ON_START`（`canShowHot == true`）**保持原项目判断**，不要自行加各广告 SDK 包名前缀。
+
+adsdk 自己的 `AppObserver` 会在退后台时强制关掉第三方广告 Activity（`AppLovinFullscreenActivity` 除外，由 `canForceCloseApplovinAd()` 决定）。因此宿主热启动一般只需：
 
 - 当前已是 Splash / 引导 / OutOpen → 不再开 Splash
-- 栈里已有全屏广告 Activity → 不再开 Splash（按广告 SDK 包名前缀判断，如 `com.tradplus.ads`、`com.google.android.gms.ads`、`com.facebook.ads`、`com.bytedance.sdk`、`com.vungle.ads`、`sg.bigo.ads`、`com.mbridge.msdk`、`com.unity3d.ads`、`com.fyber`、`com.applovin.adview`）
+- 原项目若有 `isActivityExistsInStack(AppLovinFullscreenActivity)`，原样保留
 - `canShowHot == false`：本次数一次（系统相册、文件选择）
+
+不要改成 `topName.startsWith("com.applovin.")` / `com.facebook.ads` / `com.vungle.ads` 这类清单。
 
 `ON_STOP`：
 
